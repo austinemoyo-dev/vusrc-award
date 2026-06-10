@@ -7,7 +7,7 @@ export default async function StudentsPage() {
   const [studentsRes, votesRes] = await Promise.all([
     supabase
       .from('students')
-      .select('id, matric_number, full_name, department, level, pin_set, initializer_device, last_login_at, failed_attempts, locked_until')
+      .select('id, matric_number, full_name, department, level, phone_number, pin_set, initializer_device, last_login_at, failed_attempts, locked_until')
       .order('full_name'),
     supabase.from('votes').select('student_id'),
   ])
@@ -24,6 +24,7 @@ export default async function StudentsPage() {
     full_name: s.full_name as string,
     department: s.department as string | null,
     level: s.level as string | null,
+    phone_number: s.phone_number as string | null,
     pin_set: s.pin_set as boolean,
     device_bound: (s.initializer_device as string | null) !== null,
     last_login_at: s.last_login_at as string | null,
