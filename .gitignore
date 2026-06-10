@@ -1,0 +1,5 @@
+# Ignore system directories
+.claude/
+
+# Ignore env files at root if any
+.env*
