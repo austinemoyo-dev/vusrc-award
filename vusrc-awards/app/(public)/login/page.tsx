@@ -166,7 +166,7 @@ export default function LoginPage() {
               <form onSubmit={handleMatricSubmit} className="space-y-4">
                 <input
                   ref={matricRef} type="text" value={matricInput}
-                  onChange={(e) => { setMatricInput(e.target.value); setError('') }}
+                  onChange={(e) => { setMatricInput(e.target.value.toUpperCase()); setError('') }}
                   placeholder="Matric or phone number"
                   disabled={loading} autoComplete="username" autoFocus
                   className={inputCls}
