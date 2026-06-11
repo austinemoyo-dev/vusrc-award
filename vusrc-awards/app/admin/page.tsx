@@ -35,6 +35,7 @@ export default async function AdminDashboard() {
 
   const [
     { count: studentCount },
+    { count: registeredCount },
     { count: voteCount },
     { count: openCount },
     { count: revealedCount },
@@ -42,6 +43,7 @@ export default async function AdminDashboard() {
     categoryRes,
   ] = await Promise.all([
     supabase.from('students').select('id', { count: 'exact', head: true }),
+    supabase.from('students').select('id', { count: 'exact', head: true }).eq('pin_set', true),
     supabase.from('votes').select('id', { count: 'exact', head: true }),
     supabase.from('categories').select('id', { count: 'exact', head: true }).eq('is_open', true),
     supabase.from('categories').select('id', { count: 'exact', head: true }).eq('is_revealed', true),
@@ -79,13 +81,20 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard
           label="Students"
           value={studentCount ?? 0}
           note="Eligible voters"
           accent="border-border"
           icon={<StudentIcon />}
+        />
+        <StatCard
+          label="Registered"
+          value={registeredCount ?? 0}
+          note={`of ${studentCount ?? 0} have set a PIN`}
+          accent="border-border"
+          icon={<CheckIcon />}
         />
         <StatCard
           label="Votes Cast"
@@ -209,6 +218,9 @@ function formatTime(iso: string): string {
 
 function StudentIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+}
+function CheckIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
 }
 function BallotIcon() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
