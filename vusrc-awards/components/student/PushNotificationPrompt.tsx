@@ -2,22 +2,46 @@
 
 import { useState, useEffect } from 'react'
 
-type State = 'idle' | 'subscribing' | 'subscribed' | 'denied' | 'unsupported'
+type State = 'idle' | 'subscribing' | 'subscribed' | 'denied' | 'unsupported' | 'ios-install'
 
 const STORAGE_KEY = 'vusrc_push_dismissed'
+
+function isIos(): boolean {
+  const ua = navigator.userAgent
+  // iPadOS 13+ reports as "Macintosh" but has touch support
+  const isIPadOS = ua.includes('Macintosh') && navigator.maxTouchPoints > 1
+  return /iPhone|iPad|iPod/.test(ua) || isIPadOS
+}
+
+function isStandalone(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  )
+}
 
 export function PushNotificationPrompt() {
   const [state, setState] = useState<State>('idle')
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    // Hide if already dismissed or notifications unsupported
     if (typeof window === 'undefined') return
+    if (sessionStorage.getItem(STORAGE_KEY)) return
+
+    const ios = isIos()
+    const standalone = isStandalone()
+
+    // iPhone/iPad in regular Safari: Web Push only works once added to the
+    // Home Screen and opened as a standalone app (iOS 16.4+).
+    if (ios && !standalone) {
+      const t = setTimeout(() => { setState('ios-install'); setVisible(true) }, 2500)
+      return () => clearTimeout(t)
+    }
+
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       setState('unsupported')
       return
     }
-    if (sessionStorage.getItem(STORAGE_KEY)) return
     if (Notification.permission === 'denied') {
       setState('denied')
       return
@@ -80,6 +104,37 @@ export function PushNotificationPrompt() {
   }
 
   if (!visible || state === 'unsupported' || state === 'denied') return null
+
+  if (state === 'ios-install') {
+    return (
+      <div
+        role="banner"
+        aria-label="Enable voting notifications on iPhone"
+        className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-gold/10 border-b border-gold/20 px-4 py-2.5 backdrop-blur-sm"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-gold text-base flex-shrink-0" aria-hidden>🔔</span>
+          <p className="text-foreground/80 text-sm leading-snug">
+            To get notified when voting opens, tap{' '}
+            <span aria-hidden className="font-semibold">Share ⬆</span> then{' '}
+            <span className="font-semibold">&quot;Add to Home Screen&quot;</span>, and open the app from there.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleDismiss}
+            aria-label="Dismiss notification prompt"
+            className="text-muted hover:text-foreground transition-colors p-1"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

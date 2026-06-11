@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/auth/admin-guard'
 import { createServiceClient } from '@/lib/supabase/server'
+import { notifyNomineeAdded } from '@/lib/push/send'
 
 interface BulkNominee {
   full_name: string
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   const supabase = createServiceClient()
 
   // Confirm the category exists
-  const { data: cat } = await supabase.from('categories').select('id').eq('id', category_id).maybeSingle()
+  const { data: cat } = await supabase.from('categories').select('id, name, slug').eq('id', category_id).maybeSingle()
   if (!cat) return Response.json({ error: 'Category not found' }, { status: 404 })
 
   const rows = (nominees as BulkNominee[]).map((n) => ({
@@ -53,6 +54,12 @@ export async function POST(request: Request) {
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  if (data.length === 1) {
+    void notifyNomineeAdded(data[0].full_name as string, cat.name, cat.slug)
+  } else if (data.length > 1) {
+    void notifyNomineeAdded(`${data.length} new nominees`, cat.name, cat.slug)
   }
 
   return Response.json({ created: data.length, nominees: data }, { status: 201 })

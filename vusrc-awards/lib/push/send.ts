@@ -59,6 +59,15 @@ export async function notifyCategoryOpened(name: string, slug: string): Promise<
   })
 }
 
+export async function notifyNomineeAdded(nomineeName: string, categoryName: string, categorySlug: string): Promise<void> {
+  await broadcastPush({
+    title: `New nominee added!`,
+    body:  `${nomineeName} has been added to ${categoryName}. Go vote!`,
+    url:   `/vote/${categorySlug}`,
+    tag:   `nominee-added-${categorySlug}`,
+  })
+}
+
 export async function notifyCategoryClosed(name: string): Promise<void> {
   await broadcastPush({
     title: `Voting has closed: ${name}`,
