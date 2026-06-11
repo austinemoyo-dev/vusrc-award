@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/auth/admin-guard'
 import { createServiceClient } from '@/lib/supabase/server'
-import { notifyNomineeAdded } from '@/lib/push/send'
 
 export async function GET() {
   const { errorResponse } = await requireAdmin()
@@ -70,16 +69,6 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return Response.json({ error: error.message, code: 'db_error' }, { status: 500 })
-  }
-
-  const { data: cat } = await supabase
-    .from('categories')
-    .select('name, slug')
-    .eq('id', category_id)
-    .maybeSingle()
-
-  if (cat) {
-    void notifyNomineeAdded(full_name, cat.name, cat.slug)
   }
 
   return Response.json(data, { status: 201 })
