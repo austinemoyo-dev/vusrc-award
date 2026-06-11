@@ -43,6 +43,9 @@ export async function POST(_req: NextRequest, { params }: Props) {
     return Response.json({ error: updateErr.message, code: 'db_error' }, { status: 500 })
   }
 
+  // Free up the device so the student can re-register on the same device
+  await supabase.from('device_registry').delete().eq('initialized_for', id)
+
   // Log the reset action
   await supabase.from('pin_reset_log').insert({
     student_id: id,
