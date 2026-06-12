@@ -78,7 +78,14 @@ export default function LoginPage() {
       const fingerprint = await generateFingerprint()
       const res  = await fetch('/api/auth/setup-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ matricNumber: studentInfo!.matricNumber, pin, deviceFingerprint: fingerprint }) })
       const data = await res.json()
-      if (!res.ok) { setError(res.status === 403 ? 'This phone has already been used to set up a different account.' : (data.error ?? 'Setup failed.')); return }
+      if (!res.ok) {
+        if (res.status === 403) {
+          setError(data.error?.includes('registration') ? data.error : 'This phone has already been used to set up a different account.')
+        } else {
+          setError(data.error ?? 'Setup failed.')
+        }
+        return
+      }
       router.push('/vote')
     } catch { setError('Network error. Check your internet connection and try again.') }
     finally { setLoading(false) }

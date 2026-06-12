@@ -45,9 +45,9 @@ function parseCSV(text: string): BulkRow[] {
 
 const inputCls = 'w-full bg-surface border border-border text-foreground text-sm rounded-xl px-4 py-2.5 placeholder-muted/50 focus:outline-none focus:border-gold/60 transition-colors'
 
-interface Props { initialStudents: StudentRow[] }
+interface Props { initialStudents: StudentRow[]; initialRegistrationOpen: boolean }
 
-export function StudentsClient({ initialStudents }: Props) {
+export function StudentsClient({ initialStudents, initialRegistrationOpen }: Props) {
   const [students, setStudents]       = useState<StudentRow[]>(initialStudents)
   const [search, setSearch]           = useState('')
   const [deptFilter, setDeptFilter]   = useState('')
@@ -63,6 +63,11 @@ export function StudentsClient({ initialStudents }: Props) {
   const [resetAllConfirmText, setResetAllConfirmText] = useState('')
   const [resetAllBusy, setResetAllBusy] = useState(false)
   const [resetAllError, setResetAllError] = useState('')
+
+  // Account creation open/closed
+  const [registrationOpen, setRegistrationOpen] = useState(initialRegistrationOpen)
+  const [regBusy, setRegBusy]         = useState(false)
+  const [regError, setRegError]       = useState('')
 
   // Add single student
   const [showAdd, setShowAdd]         = useState(false)
@@ -127,6 +132,22 @@ export function StudentsClient({ initialStudents }: Props) {
     } finally { setResetAllBusy(false) }
   }
 
+  async function handleSetRegistration(action: 'open' | 'close') {
+    setRegBusy(true); setRegError('')
+    try {
+      const res = await fetch('/api/admin/registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setRegError(data.error ?? `Failed to ${action} account creation`); return }
+      setRegistrationOpen(action === 'open')
+    } catch {
+      setRegError('Network error')
+    } finally { setRegBusy(false) }
+  }
+
   async function handleAddSubmit(e: React.FormEvent) {
     e.preventDefault(); setAddSaving(true); setAddError('')
     try {
@@ -179,9 +200,25 @@ export function StudentsClient({ initialStudents }: Props) {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="font-serif text-3xl font-black text-foreground">Students</h1>
-          <p className="text-muted text-sm mt-0.5">{students.length} students · {filtered.length} shown</p>
+          <p className="text-muted text-sm mt-0.5">
+            {students.length} students · {filtered.length} shown · Account creation{' '}
+            {registrationOpen
+              ? <span className="text-green-400">open</span>
+              : <span className="text-red-400">closed</span>}
+          </p>
         </div>
         <div className="flex gap-2">
+          {registrationOpen ? (
+            <button onClick={() => void handleSetRegistration('close')} disabled={regBusy}
+              className="flex items-center gap-2 border border-border text-muted hover:text-foreground text-sm px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+              {regBusy ? 'Closing…' : 'Close Account Creation'}
+            </button>
+          ) : (
+            <button onClick={() => void handleSetRegistration('open')} disabled={regBusy}
+              className="flex items-center gap-2 border border-green-500/30 text-green-400 hover:bg-green-500/10 text-sm px-4 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+              {regBusy ? 'Opening…' : 'Open Account Creation'}
+            </button>
+          )}
           <button onClick={() => { setResetAllConfirmText(''); setResetAllError(''); setShowResetAll(true) }}
             className="flex items-center gap-2 border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm px-4 py-2.5 rounded-xl transition-colors">
             Reset All PINs
@@ -196,6 +233,12 @@ export function StudentsClient({ initialStudents }: Props) {
           </button>
         </div>
       </div>
+
+      {regError && (
+        <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm flex items-start gap-2">
+          <span className="mt-px flex-shrink-0">⚠</span>{regError}
+        </div>
+      )}
 
       {resetMsg && (
         <div className={`mb-4 p-3 rounded-xl text-sm border ${resetMsg.includes('fail') ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-success/10 border-success/20 text-success'}`}>

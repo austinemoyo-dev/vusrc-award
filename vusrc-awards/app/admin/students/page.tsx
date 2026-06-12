@@ -22,7 +22,7 @@ async function fetchAllRows<T>(
 export default async function StudentsPage() {
   const supabase = createServiceClient()
 
-  const [studentsData, votesData] = await Promise.all([
+  const [studentsData, votesData, displayState] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
         .from('students')
@@ -33,7 +33,10 @@ export default async function StudentsPage() {
     fetchAllRows((from, to) =>
       supabase.from('votes').select('student_id').range(from, to)
     ),
+    supabase.from('display_state').select('registration_open').limit(1).maybeSingle(),
   ])
+
+  const registrationOpen = (displayState.data?.registration_open as boolean | null) ?? true
 
   const voteCountMap: Record<string, number> = {}
   for (const v of votesData) {
@@ -58,7 +61,7 @@ export default async function StudentsPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto">
-      <StudentsClient initialStudents={students} />
+      <StudentsClient initialStudents={students} initialRegistrationOpen={registrationOpen} />
     </div>
   )
 }

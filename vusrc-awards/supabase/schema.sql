@@ -188,3 +188,11 @@ ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "service_only_push_subscriptions"
   ON push_subscriptions
   USING (false);
+
+-- ─────────────────────────────────────────────────
+-- Phase 8: Account creation toggle
+-- ─────────────────────────────────────────────────
+
+-- Whether new students can create an account (set their PIN for the first time).
+-- Existing students with a PIN can still log in regardless of this flag.
+ALTER TABLE display_state ADD COLUMN IF NOT EXISTS registration_open BOOLEAN DEFAULT true;

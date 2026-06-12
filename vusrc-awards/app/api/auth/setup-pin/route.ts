@@ -28,6 +28,20 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient()
 
+  // Account creation can be temporarily closed by an admin
+  const { data: state } = await supabase
+    .from('display_state')
+    .select('registration_open')
+    .limit(1)
+    .maybeSingle()
+
+  if (state && state.registration_open === false) {
+    return Response.json(
+      { error: 'Account registration is currently closed. Please try again later.' },
+      { status: 403 }
+    )
+  }
+
   // Check device registry — one device per account initialization
   const { data: existingDevice } = await supabase
     .from('device_registry')
