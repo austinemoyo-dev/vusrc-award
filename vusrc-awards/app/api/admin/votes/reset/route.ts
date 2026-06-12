@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient()
 
-  // Close voting and hide previously revealed results
+  // Hide previously revealed results (vote counts are about to become invalid)
   const { error: catErr } = await supabase
     .from('categories')
-    .update({ is_open: false, is_revealed: false })
+    .update({ is_revealed: false })
     .not('id', 'is', null)
 
   if (catErr) {

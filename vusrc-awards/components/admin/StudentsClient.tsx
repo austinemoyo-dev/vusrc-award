@@ -58,6 +58,12 @@ export function StudentsClient({ initialStudents }: Props) {
   const [resetting, setResetting]     = useState(false)
   const [resetMsg, setResetMsg]       = useState('')
 
+  // Reset all PINs
+  const [showResetAll, setShowResetAll] = useState(false)
+  const [resetAllConfirmText, setResetAllConfirmText] = useState('')
+  const [resetAllBusy, setResetAllBusy] = useState(false)
+  const [resetAllError, setResetAllError] = useState('')
+
   // Add single student
   const [showAdd, setShowAdd]         = useState(false)
   const [addForm, setAddForm]         = useState({ matric_number: '', full_name: '', department: '', level: '', phone_number: '' })
@@ -100,6 +106,25 @@ export function StudentsClient({ initialStudents }: Props) {
       setConfirmResetId(null); setResetMsg('PIN and device binding cleared.')
       setTimeout(() => setResetMsg(''), 4000)
     } finally { setResetting(false) }
+  }
+
+  async function handleResetAllPins() {
+    setResetAllBusy(true); setResetAllError('')
+    try {
+      const res = await fetch('/api/admin/students/reset-all-pins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: resetAllConfirmText }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setResetAllError(data.error ?? 'Reset failed'); return }
+      setStudents((p) => p.map((s) => ({ ...s, pin_set: false, device_bound: false })))
+      setShowResetAll(false); setResetAllConfirmText('')
+      setResetMsg(`All ${data.count ?? ''} student PINs reset. Everyone must register again.`)
+      setTimeout(() => setResetMsg(''), 6000)
+    } catch {
+      setResetAllError('Network error')
+    } finally { setResetAllBusy(false) }
   }
 
   async function handleAddSubmit(e: React.FormEvent) {
@@ -157,6 +182,10 @@ export function StudentsClient({ initialStudents }: Props) {
           <p className="text-muted text-sm mt-0.5">{students.length} students · {filtered.length} shown</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => { setResetAllConfirmText(''); setResetAllError(''); setShowResetAll(true) }}
+            className="flex items-center gap-2 border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm px-4 py-2.5 rounded-xl transition-colors">
+            Reset All PINs
+          </button>
           <button onClick={() => { setBulkText(''); setBulkRows([]); setBulkError(''); setBulkResult(null); setShowBulk(true) }}
             className="flex items-center gap-2 border border-border hover:border-foreground/25 text-muted hover:text-foreground text-sm px-4 py-2.5 rounded-xl transition-colors">
             <UploadIcon /> Bulk Import
@@ -394,6 +423,53 @@ export function StudentsClient({ initialStudents }: Props) {
                     </button>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Reset all PINs confirmation */}
+      {showResetAll && (
+        <>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={() => setShowResetAll(false)} aria-hidden />
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+            <div className="bg-surface border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl p-6">
+              <h2 className="font-serif font-bold text-foreground text-lg">Reset all student PINs?</h2>
+              <p className="text-muted text-sm mt-2">
+                This will clear the PIN and device binding for every student, free up all devices,
+                and log the reset. Every student will need to register again with their matric number.
+                This cannot be undone.
+              </p>
+              <p className="text-muted text-sm mt-3">
+                Type <span className="text-red-400 font-mono font-semibold">RESET PINS</span> to confirm.
+              </p>
+              <input
+                value={resetAllConfirmText}
+                onChange={(e) => setResetAllConfirmText(e.target.value)}
+                className="mt-2 w-full bg-surface-2 border border-border text-foreground text-sm rounded-xl px-4 py-2.5 placeholder-muted/50 focus:outline-none focus:border-red-500/60 transition-colors font-mono"
+                placeholder="RESET PINS"
+                autoComplete="off"
+              />
+              {resetAllError && (
+                <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm flex items-start gap-2">
+                  <span className="mt-px flex-shrink-0">⚠</span>{resetAllError}
+                </div>
+              )}
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => void handleResetAllPins()}
+                  disabled={resetAllBusy || resetAllConfirmText !== 'RESET PINS'}
+                  className="flex-1 bg-red-500/90 hover:bg-red-500 disabled:opacity-40 text-white font-bold rounded-xl py-2.5 text-sm transition-colors"
+                >
+                  {resetAllBusy ? 'Resetting…' : 'Reset All PINs'}
+                </button>
+                <button
+                  onClick={() => setShowResetAll(false)}
+                  className="border border-border text-muted hover:text-foreground rounded-xl px-5 py-2.5 text-sm transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>

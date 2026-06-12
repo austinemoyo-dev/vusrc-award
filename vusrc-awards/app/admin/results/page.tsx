@@ -66,6 +66,8 @@ export default function ResultsPage() {
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetting, setResetting] = useState(false)
   const [resetError, setResetError] = useState('')
+  const [votingBusy, setVotingBusy] = useState<'open' | 'close' | null>(null)
+  const [votingError, setVotingError] = useState('')
 
   const fetchResults = useCallback(async () => {
     try {
@@ -89,6 +91,28 @@ export default function ResultsPage() {
     setResetConfirmText('')
     setResetError('')
     setShowResetModal(true)
+  }
+
+  async function handleSetVoting(action: 'open' | 'close') {
+    setVotingBusy(action)
+    setVotingError('')
+    try {
+      const res = await fetch('/api/admin/categories/voting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setVotingError(data.error ?? `Failed to ${action} voting`)
+        return
+      }
+      await fetchResults()
+    } catch {
+      setVotingError('Network error')
+    } finally {
+      setVotingBusy(null)
+    }
   }
 
   async function handleResetVotes() {
@@ -126,7 +150,7 @@ export default function ResultsPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={fetchResults}
             disabled={loading}
@@ -135,13 +159,33 @@ export default function ResultsPage() {
             {loading ? 'Loading…' : 'Refresh Now'}
           </button>
           <button
+            onClick={() => void handleSetVoting('close')}
+            disabled={votingBusy !== null}
+            className="border border-border text-muted text-sm hover:text-foreground rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
+          >
+            {votingBusy === 'close' ? 'Closing…' : 'Close All Voting'}
+          </button>
+          <button
+            onClick={() => void handleSetVoting('open')}
+            disabled={votingBusy !== null}
+            className="border border-green-500/30 text-green-400 text-sm hover:bg-green-500/10 rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
+          >
+            {votingBusy === 'open' ? 'Opening…' : 'Open All Voting'}
+          </button>
+          <button
             onClick={openResetModal}
             className="border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 rounded-xl px-4 py-2 transition-colors"
           >
-            Close Voting &amp; Reset All Votes
+            Reset All Votes
           </button>
         </div>
       </div>
+
+      {votingError && (
+        <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm flex items-start gap-2">
+          <span className="mt-px flex-shrink-0">⚠</span>{votingError}
+        </div>
+      )}
 
       {loading && categories.length === 0 && (
         <div className="py-16 text-center text-muted">Loading results…</div>
@@ -309,10 +353,10 @@ export default function ResultsPage() {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={() => setShowResetModal(false)} aria-hidden />
           <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
             <div className="bg-surface border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl p-6">
-              <h2 className="font-serif font-bold text-foreground text-lg">Close voting &amp; reset all votes?</h2>
+              <h2 className="font-serif font-bold text-foreground text-lg">Reset all votes?</h2>
               <p className="text-muted text-sm mt-2">
-                This will close voting for every category, hide all revealed results, permanently
-                delete every cast vote, and clear all manual vote overrides. This cannot be undone.
+                This will hide all revealed results, permanently delete every cast vote, and clear
+                all manual vote overrides. Voting open/closed state is not affected. This cannot be undone.
               </p>
               <p className="text-muted text-sm mt-3">
                 Type <span className="text-red-400 font-mono font-semibold">RESET VOTES</span> to confirm.
@@ -335,7 +379,7 @@ export default function ResultsPage() {
                   disabled={resetting || resetConfirmText !== 'RESET VOTES'}
                   className="flex-1 bg-red-500/90 hover:bg-red-500 disabled:opacity-40 text-white font-bold rounded-xl py-2.5 text-sm transition-colors"
                 >
-                  {resetting ? 'Resetting…' : 'Close Voting & Reset'}
+                  {resetting ? 'Resetting…' : 'Reset All Votes'}
                 </button>
                 <button
                   onClick={() => setShowResetModal(false)}
