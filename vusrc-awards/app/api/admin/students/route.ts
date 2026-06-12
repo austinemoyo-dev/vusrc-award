@@ -17,7 +17,7 @@ export async function GET() {
       )
       .order('full_name', { ascending: true }),
     fetchAllRows((from, to) =>
-      supabase.from('votes').select('student_id').range(from, to)
+      supabase.from('votes').select('student_id').order('id').range(from, to)
     ),
   ])
 

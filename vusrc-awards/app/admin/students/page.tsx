@@ -14,7 +14,7 @@ export default async function StudentsPage() {
         .range(from, to)
     ),
     fetchAllRows((from, to) =>
-      supabase.from('votes').select('student_id').range(from, to)
+      supabase.from('votes').select('student_id').order('id').range(from, to)
     ),
     supabase.from('display_state').select('registration_open').limit(1).maybeSingle(),
   ])

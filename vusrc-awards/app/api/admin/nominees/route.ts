@@ -13,7 +13,7 @@ export async function GET() {
     supabase.from('nominees').select('*').order('full_name', { ascending: true }),
     supabase.from('categories').select('id, name, slug, display_order').order('display_order'),
     fetchAllRows((from, to) =>
-      supabase.from('votes').select('nominee_id').range(from, to)
+      supabase.from('votes').select('nominee_id').order('id').range(from, to)
     ),
   ])
 

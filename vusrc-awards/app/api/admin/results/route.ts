@@ -12,7 +12,7 @@ export async function GET() {
     supabase.from('categories').select('id, name, slug, is_revealed, display_order').order('display_order'),
     supabase.from('nominees').select('id, category_id, full_name, department, level, photo_url, override_votes'),
     fetchAllRows((from, to) =>
-      supabase.from('votes').select('nominee_id, category_id').range(from, to)
+      supabase.from('votes').select('nominee_id, category_id').order('id').range(from, to)
     ),
   ])
 
