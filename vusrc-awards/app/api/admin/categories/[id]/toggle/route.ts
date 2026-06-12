@@ -35,7 +35,7 @@ export async function PATCH(request: NextRequest, { params }: Props) {
 
   const { data: current, error: fetchErr } = await supabase
     .from('categories')
-    .select('is_open, is_visible, name, slug')
+    .select('is_open, is_visible, is_revealed, name, slug')
     .eq('id', id)
     .single()
 
