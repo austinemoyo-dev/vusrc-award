@@ -158,8 +158,8 @@ export default function OverridesClient() {
     if (action === 'transfer') {
       if (!transferToId) return 'Select a transfer target nominee'
       if (transferToId === selectedNomineeId) return 'Cannot transfer to the same nominee'
-      if (selectedNominee && delta > selectedNominee.total_votes) {
-        return `Cannot transfer more than the nominee's current total (${selectedNominee.total_votes})`
+      if (selectedNominee && delta > selectedNominee.organic_votes) {
+        return `Cannot transfer more than the nominee's organic votes (${selectedNominee.organic_votes})`
       }
     }
     return null

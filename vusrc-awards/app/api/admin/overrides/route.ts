@@ -123,22 +123,6 @@ export async function POST(request: NextRequest) {
 
   const currentOverride = (nominee.override_votes as number) ?? 0
 
-  // Transfers move real vote weight between nominees, so they cannot exceed
-  // the source nominee's current total (organic + override).
-  if (action === 'transfer') {
-    const { count: organicCount } = await supabase
-      .from('votes')
-      .select('id', { count: 'exact', head: true })
-      .eq('nominee_id', nomineeId)
-    const currentTotal = (organicCount ?? 0) + currentOverride
-    if (votesDelta > currentTotal) {
-      return Response.json(
-        { error: `Cannot transfer more than the nominee's current total (${currentTotal} votes)`, code: 'bad_request' },
-        { status: 400 }
-      )
-    }
-  }
-
   // Execute the override
   if (action === 'add') {
     const { error: dbErr } = await supabase
@@ -154,34 +138,28 @@ export async function POST(request: NextRequest) {
       .eq('id', nomineeId)
     if (dbErr) return Response.json({ error: `DB update failed: ${dbErr.message}` }, { status: 500 })
   } else if (action === 'transfer') {
-    // Try RPC first, fall back to sequential updates
-    const { error: rpcError } = await supabase.rpc('execute_override_transfer', {
-      p_from_nominee_id: nomineeId,
-      p_to_nominee_id: transferToNomineeId,
-      p_delta: votesDelta,
-    })
-    if (rpcError) {
-      // override_votes is a net adjustment and may go negative on the source —
-      // a transfer must conserve total_votes (source -delta, target +delta).
-      const newFrom = currentOverride - votesDelta
-      const { error: e1 } = await supabase
-        .from('nominees')
-        .update({ override_votes: newFrom })
-        .eq('id', nomineeId)
-      if (e1) return Response.json({ error: `DB update failed: ${e1.message}` }, { status: 500 })
+    // Move actual cast votes from the source nominee to the target. Each vote
+    // row is tied to a (student_id, category_id) unique pair, so reassigning
+    // nominee_id is safe — it just changes who that student's vote counts for.
+    const { data: votesToMove, error: selErr } = await supabase
+      .from('votes')
+      .select('id')
+      .eq('nominee_id', nomineeId)
+      .limit(votesDelta)
+    if (selErr) return Response.json({ error: `DB read failed: ${selErr.message}` }, { status: 500 })
 
-      const { data: toNom } = await supabase
-        .from('nominees')
-        .select('override_votes')
-        .eq('id', transferToNomineeId)
-        .maybeSingle()
-      const toVal = ((toNom?.override_votes as number) ?? 0) + votesDelta
-      const { error: e2 } = await supabase
-        .from('nominees')
-        .update({ override_votes: toVal })
-        .eq('id', transferToNomineeId!)
-      if (e2) return Response.json({ error: `DB update failed: ${e2.message}` }, { status: 500 })
+    if (!votesToMove || votesToMove.length < votesDelta) {
+      return Response.json(
+        { error: `Nominee only has ${votesToMove?.length ?? 0} organic votes to transfer`, code: 'bad_request' },
+        { status: 400 }
+      )
     }
+
+    const { error: updErr } = await supabase
+      .from('votes')
+      .update({ nominee_id: transferToNomineeId })
+      .in('id', votesToMove.map((v) => v.id as string))
+    if (updErr) return Response.json({ error: `DB update failed: ${updErr.message}` }, { status: 500 })
   }
 
   // Insert audit log
