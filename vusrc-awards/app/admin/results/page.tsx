@@ -62,6 +62,10 @@ export default function ResultsPage() {
   const [categories, setCategories] = useState<CategoryResult[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
+  const [resetting, setResetting] = useState(false)
+  const [resetError, setResetError] = useState('')
 
   const fetchResults = useCallback(async () => {
     try {
@@ -81,6 +85,35 @@ export default function ResultsPage() {
     return () => clearInterval(id)
   }, [fetchResults])
 
+  function openResetModal() {
+    setResetConfirmText('')
+    setResetError('')
+    setShowResetModal(true)
+  }
+
+  async function handleResetVotes() {
+    setResetting(true)
+    setResetError('')
+    try {
+      const res = await fetch('/api/admin/votes/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: resetConfirmText }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setResetError(data.error ?? 'Failed to reset votes')
+        return
+      }
+      setShowResetModal(false)
+      await fetchResults()
+    } catch {
+      setResetError('Network error')
+    } finally {
+      setResetting(false)
+    }
+  }
+
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
       {/* Header */}
@@ -93,13 +126,21 @@ export default function ResultsPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={fetchResults}
-          disabled={loading}
-          className="border border-border text-muted text-sm hover:text-foreground rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
-        >
-          {loading ? 'Loading…' : 'Refresh Now'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchResults}
+            disabled={loading}
+            className="border border-border text-muted text-sm hover:text-foreground rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Loading…' : 'Refresh Now'}
+          </button>
+          <button
+            onClick={openResetModal}
+            className="border border-red-500/30 text-red-400 text-sm hover:bg-red-500/10 rounded-xl px-4 py-2 transition-colors"
+          >
+            Close Voting &amp; Reset All Votes
+          </button>
+        </div>
       </div>
 
       {loading && categories.length === 0 && (
@@ -261,6 +302,52 @@ export default function ResultsPage() {
           )
         })}
       </div>
+
+      {/* Close voting & reset votes confirmation */}
+      {showResetModal && (
+        <>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={() => setShowResetModal(false)} aria-hidden />
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+            <div className="bg-surface border border-red-500/30 rounded-2xl w-full max-w-md shadow-2xl p-6">
+              <h2 className="font-serif font-bold text-foreground text-lg">Close voting &amp; reset all votes?</h2>
+              <p className="text-muted text-sm mt-2">
+                This will close voting for every category, hide all revealed results, permanently
+                delete every cast vote, and clear all manual vote overrides. This cannot be undone.
+              </p>
+              <p className="text-muted text-sm mt-3">
+                Type <span className="text-red-400 font-mono font-semibold">RESET VOTES</span> to confirm.
+              </p>
+              <input
+                value={resetConfirmText}
+                onChange={(e) => setResetConfirmText(e.target.value)}
+                className="mt-2 w-full bg-surface-2 border border-border text-foreground text-sm rounded-xl px-4 py-2.5 placeholder-muted/50 focus:outline-none focus:border-red-500/60 transition-colors font-mono"
+                placeholder="RESET VOTES"
+                autoComplete="off"
+              />
+              {resetError && (
+                <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-400 text-sm flex items-start gap-2">
+                  <span className="mt-px flex-shrink-0">⚠</span>{resetError}
+                </div>
+              )}
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => void handleResetVotes()}
+                  disabled={resetting || resetConfirmText !== 'RESET VOTES'}
+                  className="flex-1 bg-red-500/90 hover:bg-red-500 disabled:opacity-40 text-white font-bold rounded-xl py-2.5 text-sm transition-colors"
+                >
+                  {resetting ? 'Resetting…' : 'Close Voting & Reset'}
+                </button>
+                <button
+                  onClick={() => setShowResetModal(false)}
+                  className="border border-border text-muted hover:text-foreground rounded-xl px-5 py-2.5 text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
