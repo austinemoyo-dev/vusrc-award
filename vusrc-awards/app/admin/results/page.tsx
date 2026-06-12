@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from 'recharts'
 
 type ResultNominee = {
@@ -146,26 +147,29 @@ export default function ResultsPage() {
                     <div className="px-5 pt-5 pb-2">
                       <ResponsiveContainer
                         width="100%"
-                        height={Math.max(160, cat.nominees.length * 42)}
+                        height={Math.max(220, 60 + cat.nominees.length * 12)}
                       >
                         <BarChart
                           data={chartData}
-                          layout="vertical"
-                          margin={{ top: 0, right: 56, left: 0, bottom: 0 }}
+                          margin={{ top: 24, right: 8, left: 0, bottom: 8 }}
                         >
                           <XAxis
-                            type="number"
-                            tick={{ fill: '#888888', fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
-                          <YAxis
-                            type="category"
                             dataKey="name"
-                            width={96}
                             tick={{ fill: '#F5F5F5', fontSize: 11 }}
                             axisLine={false}
                             tickLine={false}
+                            interval={0}
+                            angle={chartData.length > 5 ? -35 : 0}
+                            textAnchor={chartData.length > 5 ? 'end' : 'middle'}
+                            height={chartData.length > 5 ? 60 : 30}
+                          />
+                          <YAxis
+                            type="number"
+                            allowDecimals={false}
+                            tick={{ fill: '#888888', fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={32}
                           />
                           <Tooltip
                             cursor={{ fill: 'rgba(201,168,76,0.05)' }}
@@ -177,7 +181,14 @@ export default function ResultsPage() {
                               color: '#F5F5F5',
                             }}
                           />
-                          <Bar dataKey="votes" radius={[0, 4, 4, 0]}>
+                          <Bar dataKey="votes" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                            <LabelList
+                              dataKey="votes"
+                              position="top"
+                              fill="#F5F5F5"
+                              fontSize={11}
+                              fontWeight={600}
+                            />
                             {chartData.map((_, i) => (
                               <Cell key={i} fill={getBarColor(i)} />
                             ))}
