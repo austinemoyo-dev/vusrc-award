@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Insert audit log
-  await supabase.from('vote_overrides').insert({
+  const { error: auditError } = await supabase.from('vote_overrides').insert({
     superadmin_id: session.adminId,
     nominee_id: nomineeId,
     category_id: categoryId,
@@ -177,6 +177,7 @@ export async function POST(request: NextRequest) {
     transfer_to_nominee_id: action === 'transfer' ? transferToNomineeId : null,
     performed_at: new Date().toISOString(),
   })
+  if (auditError) console.error('Failed to write vote_overrides audit log:', auditError.message)
 
   // Fetch updated total for this nominee
   const [{ data: updatedNominee }, voteCountRes] = await Promise.all([
@@ -188,5 +189,17 @@ export async function POST(request: NextRequest) {
   const overrideVotes = (updatedNominee?.override_votes as number) ?? 0
   const newTotal = organicVotes + overrideVotes
 
-  return Response.json({ success: true, newTotal, overrideVotes, organicVotes })
+  // For transfers, also report the recipient's new total
+  let transferToNewTotal: number | undefined
+  if (action === 'transfer' && transferToNomineeId) {
+    const [{ data: toNominee }, toVoteCountRes] = await Promise.all([
+      supabase.from('nominees').select('override_votes').eq('id', transferToNomineeId).maybeSingle(),
+      supabase.from('votes').select('id', { count: 'exact' }).eq('nominee_id', transferToNomineeId),
+    ])
+    const toOrganic = toVoteCountRes.count ?? 0
+    const toOverride = (toNominee?.override_votes as number) ?? 0
+    transferToNewTotal = toOrganic + toOverride
+  }
+
+  return Response.json({ success: true, newTotal, overrideVotes, organicVotes, transferToNewTotal })
 }

@@ -196,3 +196,28 @@ CREATE POLICY "service_only_push_subscriptions"
 -- Whether new students can create an account (set their PIN for the first time).
 -- Existing students with a PIN can still log in regardless of this flag.
 ALTER TABLE display_state ADD COLUMN IF NOT EXISTS registration_open BOOLEAN DEFAULT true;
+
+-- ─────────────────────────────────────────────────
+-- Phase 9: Fix vote_overrides transfer support
+-- ─────────────────────────────────────────────────
+
+-- Live table was created before transfer_to_nominee_id existed in this file.
+ALTER TABLE vote_overrides ADD COLUMN IF NOT EXISTS transfer_to_nominee_id UUID REFERENCES nominees(id) ON DELETE SET NULL;
+
+-- Live database never had this function, so transfers were silently using the
+-- sequential-update fallback. Create it so transfers run atomically.
+CREATE OR REPLACE FUNCTION execute_override_transfer(
+  p_from_nominee_id UUID,
+  p_to_nominee_id   UUID,
+  p_delta           INT
+) RETURNS VOID AS $$
+BEGIN
+  UPDATE nominees
+  SET override_votes = GREATEST(0, override_votes - p_delta)
+  WHERE id = p_from_nominee_id;
+
+  UPDATE nominees
+  SET override_votes = override_votes + p_delta
+  WHERE id = p_to_nominee_id;
+END;
+$$ LANGUAGE plpgsql;

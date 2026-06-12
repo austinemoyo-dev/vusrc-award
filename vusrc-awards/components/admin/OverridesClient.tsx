@@ -214,7 +214,15 @@ export default function OverridesClient() {
       setPassword('')
 
       if (overrideRes.ok) {
-        showToast('success', `Override applied. New total for this nominee: ${overrideData.newTotal} votes.`)
+        if (action === 'transfer') {
+          const toName = nominees.find((n) => n.id === transferToId)?.full_name ?? 'recipient'
+          showToast(
+            'success',
+            `Transfer applied. ${selectedNominee?.full_name ?? 'Nominee'}: ${overrideData.newTotal} votes. ${toName}: ${overrideData.transferToNewTotal} votes.`
+          )
+        } else {
+          showToast('success', `Override applied. New total for this nominee: ${overrideData.newTotal} votes.`)
+        }
         // Reset form (keep category)
         setSelectedNomineeId('')
         setAction('add')
