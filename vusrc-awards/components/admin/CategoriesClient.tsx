@@ -87,6 +87,7 @@ export function CategoriesClient({ initialCategories }: Props) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [confirmReveal, setConfirmReveal] = useState<{ id: string; name: string; next: boolean } | null>(null)
 
   // Bulk upload state
   const [showBulk, setShowBulk] = useState(false)
@@ -132,6 +133,16 @@ export function CategoriesClient({ initialCategories }: Props) {
     } finally {
       setToggling(null)
     }
+  }
+
+  function handleRevealClick(cat: CategoryRow) {
+    setConfirmReveal({ id: cat.id, name: cat.name, next: !cat.is_revealed })
+  }
+
+  async function confirmToggleReveal() {
+    if (!confirmReveal) return
+    await handleToggle(confirmReveal.id, 'is_revealed')
+    setConfirmReveal(null)
   }
 
   async function handleDelete(id: string) {
@@ -266,7 +277,7 @@ export function CategoriesClient({ initialCategories }: Props) {
       <div className="flex items-center gap-4 text-xs text-muted mb-4">
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-surface-2 border border-border inline-block" />Off</span>
         <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-gold/20 border border-gold/40 inline-block" />On</span>
-        <span className="text-muted/50">· Click any badge to toggle</span>
+        <span className="text-muted/50">· Click any badge to toggle · Revealed asks for confirmation and can be undone</span>
       </div>
 
       {/* Cards */}
@@ -325,7 +336,7 @@ export function CategoriesClient({ initialCategories }: Props) {
                         return (
                           <button
                             key={field}
-                            onClick={() => handleToggle(cat.id, field)}
+                            onClick={() => field === 'is_revealed' ? handleRevealClick(cat) : handleToggle(cat.id, field)}
                             disabled={busy}
                             title={on ? `Turn off ${labels[field]}` : `Turn on ${labels[field]}`}
                             className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 border transition-all disabled:opacity-50 min-w-[72px] justify-center ${cls}`}
@@ -372,6 +383,40 @@ export function CategoriesClient({ initialCategories }: Props) {
             )
           })}
         </div>
+      )}
+
+      {/* Reveal / Unreveal confirmation */}
+      {confirmReveal && (
+        <>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30" onClick={() => setConfirmReveal(null)} aria-hidden />
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
+            <div className="bg-surface border border-border rounded-2xl w-full max-w-sm shadow-2xl p-6">
+              <h2 className="font-serif font-bold text-foreground text-lg">
+                {confirmReveal.next ? 'Reveal results?' : 'Unreveal results?'}
+              </h2>
+              <p className="text-muted text-sm mt-2">
+                {confirmReveal.next
+                  ? `This will make the results for "${confirmReveal.name}" visible to everyone on the display and results pages.`
+                  : `This will hide the results for "${confirmReveal.name}" from the display and results pages again. You can re-reveal it later.`}
+              </p>
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => void confirmToggleReveal()}
+                  disabled={toggling === `${confirmReveal.id}-is_revealed`}
+                  className="flex-1 bg-gold hover:bg-gold-light disabled:opacity-50 text-base font-bold rounded-xl py-2.5 text-sm transition-colors"
+                >
+                  {toggling === `${confirmReveal.id}-is_revealed` ? 'Saving…' : confirmReveal.next ? 'Reveal' : 'Unreveal'}
+                </button>
+                <button
+                  onClick={() => setConfirmReveal(null)}
+                  className="border border-border text-muted hover:text-foreground rounded-xl px-5 py-2.5 text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Bulk upload modal */}
