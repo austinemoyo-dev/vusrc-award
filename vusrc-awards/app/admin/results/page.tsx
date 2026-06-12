@@ -41,6 +41,91 @@ function getBarColor(index: number) {
   return BAR_COLORS[Math.min(index, BAR_COLORS.length - 1)]
 }
 
+async function exportWinnersPDF(categories: CategoryResult[]) {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const marginX = 48
+  let y = 64
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.text('VUSRC Awards — Winners', marginX, y)
+  y += 20
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(120)
+  doc.text(`Generated ${new Date().toLocaleString('en-GB')}`, marginX, y)
+  doc.setTextColor(0)
+  y += 28
+
+  const eligible = categories.filter((c) => c.nominees.length > 0)
+
+  for (const cat of eligible) {
+    const winner = cat.nominees.find((n) => n.rank === 1) ?? cat.nominees[0]
+
+    if (y > doc.internal.pageSize.getHeight() - 80) {
+      doc.addPage()
+      y = 64
+    }
+
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(13)
+    doc.text(cat.name, marginX, y)
+    y += 18
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+
+    if (!cat.is_revealed) {
+      doc.setTextColor(150)
+      doc.text('Not yet revealed', marginX, y)
+      doc.setTextColor(0)
+      y += 22
+      continue
+    }
+
+    if (!winner) {
+      doc.setTextColor(150)
+      doc.text('No votes cast', marginX, y)
+      doc.setTextColor(0)
+      y += 22
+      continue
+    }
+
+    doc.setFont('helvetica', 'bold')
+    doc.text(winner.full_name, marginX, y)
+    const winnerNameWidth = doc.getTextWidth(winner.full_name)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(120)
+    doc.text(
+      `  —  ${winner.total_votes} votes (${winner.percentage}%)`,
+      marginX + winnerNameWidth,
+      y
+    )
+    doc.setTextColor(0)
+    y += 14
+
+    const meta = [winner.department, winner.level].filter(Boolean).join(' · ')
+    if (meta) {
+      doc.setFontSize(10)
+      doc.setTextColor(150)
+      doc.text(meta, marginX, y)
+      doc.setTextColor(0)
+      doc.setFontSize(11)
+      y += 14
+    }
+
+    y += 12
+    doc.setDrawColor(220)
+    doc.line(marginX, y - 6, pageWidth - marginX, y - 6)
+    y += 8
+  }
+
+  doc.save('vusrc-awards-winners.pdf')
+}
+
 function exportCSV(cat: CategoryResult) {
   const header = 'Category,Nominee,Votes,Percentage'
   const rows = cat.nominees.map(
@@ -171,6 +256,13 @@ export default function ResultsPage() {
             className="border border-green-500/30 text-green-400 text-sm hover:bg-green-500/10 rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
           >
             {votingBusy === 'open' ? 'Opening…' : 'Open All Voting'}
+          </button>
+          <button
+            onClick={() => void exportWinnersPDF(categories)}
+            disabled={categories.length === 0}
+            className="border border-gold/30 text-gold text-sm hover:bg-gold/10 rounded-xl px-4 py-2 transition-colors disabled:opacity-50"
+          >
+            Download Winners PDF
           </button>
           <button
             onClick={openResetModal}
