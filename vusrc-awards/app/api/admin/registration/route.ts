@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/auth/admin-guard'
 import { createServiceClient } from '@/lib/supabase/server'
+import { notifyRegistrationOpened, notifyRegistrationClosed } from '@/lib/push/send'
 
 async function getOrCreateState(supabase: ReturnType<typeof createServiceClient>) {
   let { data } = await supabase
@@ -64,6 +65,12 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return Response.json({ error: error.message, code: 'db_error' }, { status: 500 })
+  }
+
+  if (opening) {
+    notifyRegistrationOpened().catch(() => {})
+  } else {
+    notifyRegistrationClosed().catch(() => {})
   }
 
   return Response.json({ success: true, open: opening })

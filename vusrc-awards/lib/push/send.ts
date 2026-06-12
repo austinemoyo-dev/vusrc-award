@@ -67,3 +67,21 @@ export async function notifyCategoryClosed(name: string): Promise<void> {
     tag:   `cat-closed-${name}`,
   })
 }
+
+export async function notifyRegistrationOpened(): Promise<void> {
+  await broadcastPush({
+    title: 'Account registration is now open!',
+    body:  'Register with your matric number and set up your PIN to start voting.',
+    url:   '/login',
+    tag:   'registration-open',
+  })
+}
+
+export async function notifyRegistrationClosed(): Promise<void> {
+  await broadcastPush({
+    title: 'Account registration has closed',
+    body:  'New account creation is temporarily paused. Students who already registered can still log in and vote.',
+    url:   '/login',
+    tag:   'registration-closed',
+  })
+}
