@@ -28,6 +28,20 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient()
 
+  // Check device registry — one device per account initialization
+  const { data: existingDevice } = await supabase
+    .from('device_registry')
+    .select('id')
+    .eq('device_fingerprint', fingerprint)
+    .maybeSingle()
+
+  if (existingDevice) {
+    return Response.json(
+      { error: 'This device has already been used to set up an account.' },
+      { status: 403 }
+    )
+  }
+
   // Load student
   const { data: student, error: studentErr } = await supabase
     .from('students')
@@ -59,6 +73,12 @@ export async function POST(request: NextRequest) {
   if (updateErr) {
     return Response.json({ error: 'Failed to initialize account.' }, { status: 500 })
   }
+
+  // Register device
+  await supabase.from('device_registry').insert({
+    device_fingerprint: fingerprint,
+    initialized_for: student.id,
+  })
 
   const token = await signStudentToken(student.id, matric)
   await setStudentSession(token)

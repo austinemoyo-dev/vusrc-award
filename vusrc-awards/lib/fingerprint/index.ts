@@ -1,42 +1,36 @@
 /**
- * Generates a stable SHA-256 device fingerprint from browser signals.
- * Must only be called from client-side code (browser APIs required).
+ * Generates a stable device identifier for "one device per account" binding.
+ *
+ * A persisted random ID (stored in localStorage) is used as the primary
+ * identifier — unlike a hardware/browser fingerprint, it cannot collide
+ * between two different physical devices of the same model, OS, and
+ * region, which previously caused false "device already used" lockouts.
+ *
+ * If localStorage is unavailable, falls back to a hash of browser signals.
  */
 export async function generateFingerprint(): Promise<string> {
+  try {
+    const STORAGE_KEY = 'vusrc_device_id'
+    let id = localStorage.getItem(STORAGE_KEY)
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem(STORAGE_KEY, id)
+    }
+    return id
+  } catch {
+    return await fallbackFingerprint()
+  }
+}
+
+async function fallbackFingerprint(): Promise<string> {
   const components: string[] = []
 
-  // Screen
   components.push(`${screen.width}x${screen.height}x${screen.colorDepth}`)
-
-  // Navigator
   components.push(navigator.userAgent)
   components.push(navigator.language)
   components.push(String(navigator.hardwareConcurrency ?? 0))
   components.push(navigator.platform ?? '')
-
-  // Timezone
   components.push(Intl.DateTimeFormat().resolvedOptions().timeZone)
-
-  // Canvas fingerprint
-  try {
-    const canvas = document.createElement('canvas')
-    canvas.width = 220
-    canvas.height = 60
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      ctx.fillStyle = '#f60'
-      ctx.fillRect(120, 1, 68, 24)
-      ctx.fillStyle = '#069'
-      ctx.font = '11pt "Times New Roman"'
-      ctx.fillText('VUSRC Awards 2025', 2, 18)
-      ctx.fillStyle = 'rgba(102, 204, 0, 0.75)'
-      ctx.font = '16pt Arial'
-      ctx.fillText('Vision Uni', 4, 50)
-      components.push(canvas.toDataURL())
-    }
-  } catch {
-    components.push('no-canvas')
-  }
 
   const raw = components.join('|||')
   const encoded = new TextEncoder().encode(raw)
