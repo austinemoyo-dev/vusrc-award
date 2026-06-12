@@ -206,6 +206,9 @@ ALTER TABLE vote_overrides ADD COLUMN IF NOT EXISTS transfer_to_nominee_id UUID 
 
 -- Live database never had this function, so transfers were silently using the
 -- sequential-update fallback. Create it so transfers run atomically.
+-- Note: override_votes is allowed to go negative on the source — it is a net
+-- adjustment against organic votes, and a transfer must conserve the total
+-- (source total -delta, target total +delta).
 CREATE OR REPLACE FUNCTION execute_override_transfer(
   p_from_nominee_id UUID,
   p_to_nominee_id   UUID,
@@ -213,7 +216,7 @@ CREATE OR REPLACE FUNCTION execute_override_transfer(
 ) RETURNS VOID AS $$
 BEGIN
   UPDATE nominees
-  SET override_votes = GREATEST(0, override_votes - p_delta)
+  SET override_votes = override_votes - p_delta
   WHERE id = p_from_nominee_id;
 
   UPDATE nominees

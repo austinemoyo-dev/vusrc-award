@@ -123,6 +123,22 @@ export async function POST(request: NextRequest) {
 
   const currentOverride = (nominee.override_votes as number) ?? 0
 
+  // Transfers move real vote weight between nominees, so they cannot exceed
+  // the source nominee's current total (organic + override).
+  if (action === 'transfer') {
+    const { count: organicCount } = await supabase
+      .from('votes')
+      .select('id', { count: 'exact', head: true })
+      .eq('nominee_id', nomineeId)
+    const currentTotal = (organicCount ?? 0) + currentOverride
+    if (votesDelta > currentTotal) {
+      return Response.json(
+        { error: `Cannot transfer more than the nominee's current total (${currentTotal} votes)`, code: 'bad_request' },
+        { status: 400 }
+      )
+    }
+  }
+
   // Execute the override
   if (action === 'add') {
     const { error: dbErr } = await supabase
@@ -145,7 +161,9 @@ export async function POST(request: NextRequest) {
       p_delta: votesDelta,
     })
     if (rpcError) {
-      const newFrom = Math.max(0, currentOverride - votesDelta)
+      // override_votes is a net adjustment and may go negative on the source —
+      // a transfer must conserve total_votes (source -delta, target +delta).
+      const newFrom = currentOverride - votesDelta
       const { error: e1 } = await supabase
         .from('nominees')
         .update({ override_votes: newFrom })
