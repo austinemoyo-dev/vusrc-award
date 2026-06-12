@@ -1,17 +1,20 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { NomineesClient } from '@/components/admin/NomineesClient'
 
 export default async function NomineesPage() {
   const supabase = createServiceClient()
 
-  const [nomineesRes, categoriesRes, votesRes] = await Promise.all([
+  const [nomineesRes, categoriesRes, votes] = await Promise.all([
     supabase.from('nominees').select('*').order('full_name'),
     supabase.from('categories').select('id, name, slug, display_order').order('display_order'),
-    supabase.from('votes').select('nominee_id'),
+    fetchAllRows((from, to) =>
+      supabase.from('votes').select('nominee_id').range(from, to)
+    ),
   ])
 
   const voteCountMap: Record<string, number> = {}
-  for (const v of votesRes.data ?? []) {
+  for (const v of votes) {
     const nid = v.nominee_id as string
     voteCountMap[nid] = (voteCountMap[nid] ?? 0) + 1
   }

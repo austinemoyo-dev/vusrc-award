@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/auth/admin-guard'
 import { createServiceClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 export async function GET() {
   const { errorResponse } = await requireAdmin()
@@ -8,18 +9,20 @@ export async function GET() {
 
   const supabase = createServiceClient()
 
-  const [studentsRes, votesRes] = await Promise.all([
+  const [studentsRes, votes] = await Promise.all([
     supabase
       .from('students')
       .select(
         'id, matric_number, full_name, department, level, phone_number, pin_set, initializer_device, last_login_at, failed_attempts, locked_until, created_at'
       )
       .order('full_name', { ascending: true }),
-    supabase.from('votes').select('student_id'),
+    fetchAllRows((from, to) =>
+      supabase.from('votes').select('student_id').range(from, to)
+    ),
   ])
 
   const voteCountMap: Record<string, number> = {}
-  for (const v of votesRes.data ?? []) {
+  for (const v of votes) {
     const sid = v.student_id as string
     voteCountMap[sid] = (voteCountMap[sid] ?? 0) + 1
   }

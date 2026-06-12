@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/auth/admin-guard'
 import { createServiceClient } from '@/lib/supabase/server'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 export async function GET() {
   const { errorResponse } = await requireAdmin()
@@ -7,15 +8,17 @@ export async function GET() {
 
   const supabase = createServiceClient()
 
-  const [categoriesRes, nomineesRes, votesRes] = await Promise.all([
+  const [categoriesRes, nomineesRes, votes] = await Promise.all([
     supabase.from('categories').select('id, name, slug, is_revealed, display_order').order('display_order'),
     supabase.from('nominees').select('id, category_id, full_name, department, level, photo_url, override_votes'),
-    supabase.from('votes').select('nominee_id, category_id'),
+    fetchAllRows((from, to) =>
+      supabase.from('votes').select('nominee_id, category_id').range(from, to)
+    ),
   ])
 
   // Build organic vote count map
   const organicMap: Record<string, number> = {}
-  for (const v of votesRes.data ?? []) {
+  for (const v of votes) {
     const nid = v.nominee_id as string
     organicMap[nid] = (organicMap[nid] ?? 0) + 1
   }
